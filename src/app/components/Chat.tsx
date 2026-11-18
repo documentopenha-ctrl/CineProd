@@ -1,6 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+
+import { HANDOFF_PROMPT_KEY } from "@/lib/handoff";
 
 type Message = {
   role: "user" | "assistant";
@@ -15,6 +18,16 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  const sendToGenerator = (text: string) => {
+    try {
+      window.localStorage.setItem(HANDOFF_PROMPT_KEY, text);
+    } catch {
+      // Almacenamiento no disponible (modo privado, cuotas, etc.): seguimos sin bloquear la navegación.
+    }
+    router.push("/generador");
+  };
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -87,18 +100,31 @@ export default function Chat() {
           <div className="max-w-[85%] self-start rounded-2xl rounded-bl-sm bg-neutral-100 px-4 py-3 text-sm leading-relaxed text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100">
             {WELCOME}
           </div>
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={
-                m.role === "user"
-                  ? "max-w-[85%] self-end rounded-2xl rounded-br-sm bg-amber-600 px-4 py-3 text-sm leading-relaxed text-white"
-                  : "max-w-[85%] self-start rounded-2xl rounded-bl-sm bg-neutral-100 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
-              }
-            >
-              {m.content || (isStreaming && i === messages.length - 1 ? "…" : "")}
-            </div>
-          ))}
+          {messages.map((m, i) => {
+            const isLastStreaming = isStreaming && i === messages.length - 1;
+            return (
+              <div key={i} className={m.role === "user" ? "self-end" : "self-start"}>
+                <div
+                  className={
+                    m.role === "user"
+                      ? "max-w-[85%] rounded-2xl rounded-br-sm bg-amber-600 px-4 py-3 text-sm leading-relaxed text-white"
+                      : "max-w-[85%] rounded-2xl rounded-bl-sm bg-neutral-100 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+                  }
+                >
+                  {m.content || (isLastStreaming ? "…" : "")}
+                </div>
+                {m.role === "assistant" && m.content && !isLastStreaming && (
+                  <button
+                    type="button"
+                    onClick={() => sendToGenerator(m.content)}
+                    className="mt-1 text-xs font-medium text-amber-600 hover:underline"
+                  >
+                    Enviar al generador →
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
